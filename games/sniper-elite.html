@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sniper Elite - Target Shooting</title>
+    <link rel="stylesheet" href="shared-styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <a href="../index.html" class="back-btn"><span>←</span><span>Back to Home</span></a>
+            <h1 class="game-title">Sniper Elite</h1>
+            <div></div>
+        </div>
+        <div class="game-stats">
+            <div class="stat-item"><div class="stat-label">Score</div><div class="stat-value" id="score">0</div></div>
+            <div class="stat-item"><div class="stat-label">Hits</div><div class="stat-value" id="hits">0/0</div></div>
+            <div class="stat-item"><div class="stat-label">Time</div><div class="stat-value" id="time">30</div></div>
+        </div>
+        <div class="instructions"><h3>How to Play</h3><p>Click on targets before time runs out. Closer to center = more points!</p></div>
+        <canvas id="gameCanvas" class="game-canvas" width="800" height="600"></canvas>
+        <div class="game-controls"><button class="btn btn-primary" id="startBtn" onclick="startGame()">Start Game</button></div>
+    </div>
+    <div class="modal" id="gameOverModal">
+        <div class="modal-content">
+            <h2 class="modal-title">Time's Up!</h2>
+            <p class="modal-text">Final Score: <span id="finalScore">0</span></p>
+            <p class="modal-text">Accuracy: <span id="accuracy">0%</span></p>
+            <button class="btn btn-primary" onclick="startGame()">Play Again</button>
+            <button class="btn btn-secondary" onclick="window.location.href='../index.html'">Back to Home</button>
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let gameRunning = false;
+        let score = 0;
+        let hits = 0;
+        let shots = 0;
+        let timeLeft = 30;
+        let targets = [];
+        let timer = null;
+        
+        canvas.addEventListener('click', (e) => {
+            if (!gameRunning) return;
+            shots++;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            let hitTarget = false;
+            targets.forEach((target, i) => {
+                const dist = Math.hypot(x - target.x, y - target.y);
+                if (dist < target.radius) {
+                    hitTarget = true;
+                    const points = Math.max(10, Math.floor(100 - dist));
+                    score += points;
+                    hits++;
+                    targets.splice(i, 1);
+                    createImpact(x, y, true);
+                }
+            });
+            
+            if (!hitTarget) createImpact(x, y, false);
+            updateUI();
+        });
+        
+        function startGame() {
+            gameRunning = true;
+            score = 0;
+            hits = 0;
+            shots = 0;
+            timeLeft = 30;
+            targets = [];
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('gameOverModal').classList.remove('active');
+            gameLoop();
+            if(timer) clearInterval(timer);
+            timer = setInterval(() => {
+                timeLeft--;
+                if(timeLeft <= 0) endGame();
+                updateUI();
+            }, 1000);
+        }
+        
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            if (Math.random() < 0.02 && targets.length < 5) {
+                targets.push({
+                    x: 100 + Math.random() * 600,
+                    y: 100 + Math.random() * 400,
+                    radius: 30 + Math.random() * 20,
+                    speed: 1 + Math.random()
+                });
+            }
+            
+            targets.forEach(t => {
+                t.x += (Math.random() - 0.5) * t.speed;
+                t.y += (Math.random() - 0.5) * t.speed;
+                t.x = Math.max(50, Math.min(750, t.x));
+                t.y = Math.max(50, Math.min(550, t.y));
+            });
+            
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function draw() {
+            const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grad.addColorStop(0, '#0f0420');
+            grad.addColorStop(1, '#1a0b2e');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            targets.forEach(t => {
+                ctx.fillStyle = '#ec4899';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#ec4899';
+                ctx.beginPath();
+                ctx.arc(t.x, t.y, t.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(t.x, t.y, t.radius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(t.x, t.y, t.radius / 2, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(t.x, t.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+        
+        let impacts = [];
+        function createImpact(x, y, hit) {
+            impacts.push({x, y, hit, alpha: 1});
+            setTimeout(() => {
+                const interval = setInterval(() => {
+                    impacts = impacts.filter(i => {
+                        i.alpha -= 0.1;
+                        return i.alpha > 0;
+                    });
+                    if(impacts.length === 0) clearInterval(interval);
+                }, 50);
+            }, 10);
+        }
+        
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('hits').textContent = `${hits}/${shots}`;
+            document.getElementById('time').textContent = timeLeft;
+        }
+        
+        function endGame() {
+            gameRunning = false;
+            clearInterval(timer);
+            document.getElementById('finalScore').textContent = score;
+            const acc = shots > 0 ? Math.round((hits / shots) * 100) : 0;
+            document.getElementById('accuracy').textContent = acc + '%';
+            document.getElementById('gameOverModal').classList.add('active');
+            document.getElementById('startBtn').disabled = false;
+        }
+    </script>
+</body>
+</html>

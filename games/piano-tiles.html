@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Piano Tiles - Music Game</title>
+    <link rel="stylesheet" href="shared-styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        .game-board {
+            position: relative;
+            width: 400px;
+            height: 600px;
+            margin: 20px auto;
+            background: #000;
+            border: 3px solid rgba(168, 85, 247, 0.5);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: 0 0 40px rgba(168, 85, 247, 0.3);
+        }
+
+        .lanes-wrapper {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            height: 100%;
+            position: relative;
+        }
+
+        .lane {
+            background: linear-gradient(180deg, rgba(45, 27, 78, 0.2), rgba(45, 27, 78, 0.4));
+            border-right: 2px solid rgba(168, 85, 247, 0.2);
+            position: relative;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .lane:last-child {
+            border-right: none;
+        }
+
+        .lane:active {
+            background: rgba(168, 85, 247, 0.3);
+        }
+
+        .tile {
+            position: absolute;
+            width: 100%;
+            height: 120px;
+            background: linear-gradient(180deg, #a855f7, #ec4899);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.6);
+            transition: all 0.1s;
+        }
+
+        .tile.hit {
+            background: linear-gradient(180deg, #4ade80, #22c55e);
+            box-shadow: 0 0 30px rgba(74, 222, 128, 0.8);
+        }
+
+        .hit-zone {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: linear-gradient(180deg, transparent, rgba(168, 85, 247, 0.1));
+            border-top: 3px solid rgba(168, 85, 247, 0.5);
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: radial-gradient(circle, rgba(168, 85, 247, 1), transparent);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particleFade 0.5s forwards;
+        }
+
+        @keyframes particleFade {
+            to {
+                opacity: 0;
+                transform: translateY(-50px) scale(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <a href="../index.html" class="back-btn"><span>←</span><span>Back to Home</span></a>
+            <h1 class="game-title">Piano Tiles</h1>
+            <div></div>
+        </div>
+        <div class="game-stats">
+            <div class="stat-item"><div class="stat-label">Score</div><div class="stat-value" id="score">0</div></div>
+            <div class="stat-item"><div class="stat-label">Combo</div><div class="stat-value" id="combo">0</div></div>
+            <div class="stat-item"><div class="stat-label">Best</div><div class="stat-value" id="best">0</div></div>
+        </div>
+        <div class="instructions"><h3>How to Play</h3><p>Click tiles before they reach the bottom! Build combos for higher scores!</p></div>
+        
+        <div class="game-board" id="gameBoard">
+            <div class="lanes-wrapper" id="lanesWrapper"></div>
+            <div class="hit-zone"></div>
+        </div>
+
+        <div class="game-controls">
+            <button class="btn btn-primary" id="startBtn" onclick="startGame()">Start Game</button>
+        </div>
+    </div>
+
+    <div class="modal" id="gameOverModal">
+        <div class="modal-content">
+            <h2 class="modal-title">Game Over!</h2>
+            <p class="modal-text">Final Score: <span id="finalScore">0</span></p>
+            <p class="modal-text">Max Combo: <span id="maxCombo">0</span></p>
+            <button class="btn btn-primary" onclick="startGame()">Play Again</button>
+            <button class="btn btn-secondary" onclick="window.location.href='../index.html'">Back to Home</button>
+        </div>
+    </div>
+
+    <script>
+        // Audio Context for sounds
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playTone(frequency, duration = 0.1) {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + duration);
+        }
+
+        const notes = [261.63, 293.66, 329.63, 349.23]; // C, D, E, F
+        
+        let gameRunning = false;
+        let score = 0;
+        let combo = 0;
+        let maxCombo = 0;
+        let best = localStorage.getItem('pianoTilesBest') || 0;
+        let speed = 2;
+        let tiles = [];
+        let lanes = [];
+        let spawnInterval;
+        let gameLoop;
+
+        const lanesWrapper = document.getElementById('lanesWrapper');
+        
+        // Create lanes
+        for (let i = 0; i < 4; i++) {
+            const lane = document.createElement('div');
+            lane.className = 'lane';
+            lane.dataset.lane = i;
+            lane.addEventListener('click', () => handleLaneClick(i));
+            lanesWrapper.appendChild(lane);
+            lanes.push(lane);
+        }
+
+        function startGame() {
+            if (gameRunning) return;
+            
+            gameRunning = true;
+            score = 0;
+            combo = 0;
+            maxCombo = 0;
+            speed = 2;
+            tiles = [];
+            
+            lanes.forEach(lane => {
+                Array.from(lane.children).forEach(child => {
+                    if (child.classList.contains('tile')) child.remove();
+                });
+            });
+            
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('gameOverModal').classList.remove('active');
+            document.getElementById('best').textContent = best;
+            
+            updateUI();
+            spawnTile();
+            spawnInterval = setInterval(spawnTile, 1200);
+            update();
+        }
+
+        function spawnTile() {
+            if (!gameRunning) return;
+            
+            const laneIndex = Math.floor(Math.random() * 4);
+            const tile = document.createElement('div');
+            tile.className = 'tile';
+            tile.style.top = '-120px';
+            
+            lanes[laneIndex].appendChild(tile);
+            tiles.push({
+                element: tile,
+                lane: laneIndex,
+                y: -120,
+                hit: false,
+                missed: false
+            });
+        }
+
+        function update() {
+            if (!gameRunning) return;
+            
+            tiles.forEach((tile, index) => {
+                if (!tile.hit && !tile.missed) {
+                    tile.y += speed;
+                    tile.element.style.top = tile.y + 'px';
+                    
+                    // Check if tile passed bottom
+                    if (tile.y > 600) {
+                        tile.missed = true;
+                        endGame();
+                        return;
+                    }
+                }
+            });
+            
+            // Gradually increase speed
+            speed += 0.001;
+            
+            gameLoop = requestAnimationFrame(update);
+        }
+
+        function handleLaneClick(laneIndex) {
+            if (!gameRunning) return;
+            
+            // Find tiles in this lane near the hit zone
+            const laneTiles = tiles.filter(t => 
+                t.lane === laneIndex && 
+                !t.hit && 
+                !t.missed &&
+                t.y > 400 && 
+                t.y < 600
+            );
+            
+            if (laneTiles.length > 0) {
+                // Hit the closest tile
+                const closestTile = laneTiles.reduce((prev, curr) => 
+                    Math.abs(curr.y - 520) < Math.abs(prev.y - 520) ? curr : prev
+                );
+                
+                closestTile.hit = true;
+                closestTile.element.classList.add('hit');
+                
+                // Play sound
+                playTone(notes[laneIndex]);
+                
+                // Score
+                score += 10 + (combo * 2);
+                combo++;
+                maxCombo = Math.max(maxCombo, combo);
+                
+                // Particles
+                createParticles(laneIndex);
+                
+                // Remove tile
+                setTimeout(() => {
+                    closestTile.element.remove();
+                    tiles = tiles.filter(t => t !== closestTile);
+                }, 150);
+                
+                updateUI();
+            } else {
+                // Missed click - reset combo
+                combo = 0;
+                updateUI();
+            }
+        }
+
+        function createParticles(laneIndex) {
+            const lane = lanes[laneIndex];
+            const rect = lane.getBoundingClientRect();
+            
+            for (let i = 0; i < 8; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = (Math.random() * 100) + '%';
+                particle.style.bottom = '80px';
+                lane.appendChild(particle);
+                
+                setTimeout(() => particle.remove(), 500);
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('combo').textContent = combo;
+        }
+
+        function endGame() {
+            gameRunning = false;
+            clearInterval(spawnInterval);
+            cancelAnimationFrame(gameLoop);
+            
+            if (score > best) {
+                best = score;
+                localStorage.setItem('pianoTilesBest', best);
+            }
+            
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('maxCombo').textContent = maxCombo;
+            document.getElementById('gameOverModal').classList.add('active');
+            document.getElementById('startBtn').disabled = false;
+        }
+
+        // Initial UI
+        document.getElementById('best').textContent = best;
+    </script>
+</body>
+</html>

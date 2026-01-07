@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PERPAHMIAN Game Station - Play Amazing Games</title>
+    <meta name="description" content="PERPAHMIAN Game Station - Play amazing browser games instantly. Powered by perpahmian.ltd">
+    <link rel="stylesheet" href="index.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="cyber-grid"></div>
+    <div class="spotlight" id="spotlight"></div>
+    
+    <!-- Header -->
+    <header class="header">
+        <div class="header-container">
+            <div class="logo">
+                <div class="logo-icon">
+                    <div class="logo-core"></div>
+                    <div class="logo-ring"></div>
+                </div>
+                <span class="logo-text">PERPAHMIAN</span>
+            </div>
+            <nav class="nav">
+                <a href="#games" class="nav-link">Games</a>
+                <a href="about.html" class="nav-link">About</a>
+                <a href="#" class="nav-link">Contact</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1 class="hero-title">
+                <span class="title-line" data-text="PERPAHMIAN">PERPAHMIAN</span>
+                <span class="title-line main" data-text="GAME STATION">GAME STATION</span>
+            </h1>
+            <p class="hero-subtitle">10 Premium Games • Powered by perpahmian.ltd</p>
+            <a href="#games" class="cta-button">
+                <span>START PLAYING</span>
+                <div class="cta-glow"></div>
+            </a>
+        </div>
+        <div class="hero-visual">
+            <div class="floating-card"></div>
+            <div class="floating-card"></div>
+            <div class="floating-card"></div>
+        </div>
+    </section>
+
+    <!-- Games Section -->
+    <section class="games-section" id="games">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="title-accent">►</span>
+                AVAILABLE GAMES
+                <span class="title-accent">◄</span>
+            </h2>
+            <p class="section-subtitle">Choose your adventure</p>
+        </div>
+
+        <div class="games-grid">
+            <!-- Game 1: Tetris -->
+            <div class="game-card" data-game="tetris">
+                <div class="card-inner">
+                    <div class="card-glow"></div>
+                    <div class="card-content">
+                        <div class="game-icon-large">🎮</div>
+                        <h3 class="game-name">Tetris</h3>
+                        <p class="game-genre">Classic Puzzle</p>
+                        <div class="game-stats">
+                            <span class="stat"><span class="stat-icon">🧩</span> Puzzle</span>
+                            <span class="stat"><span class="stat-icon">⭐</span> Classic</span>
+                        </div>
+                    </div>
+                    <div class="card-shine"></div>
+                </div>
+            </div>
+
+            <!-- Game 2: Cosmic Quest -->
+            <div class="game-card" data-game="cosmic-quest">
+                <div class="card-inner">
+                    <div class="card-glow"></div>
+                    <div class="card-content">
+                        <div class="game-icon-large">🚀</div>
+                        <h3 class="game-name">Cosmic Quest</h3>
+                        <p class="game-genre">Space Shooter</p>
+                        <div class="game-stats">
+                            <span class="stat"><span class="stat-icon">⚡</span> Action</span>
+                            <span class="stat"><span class="stat-icon">🎯</span> Arcade</span>
+                        </div>
+                    </div>
+                    <div class="card-shine"></div>
+                </div>
+            </div>
+
+            <!-- Game 3: Color Match -->
+            <div class="game-card" data-game="color-match">
+                <div class="card-inner">
+                    <div class="card-glow"></div>
+                    <div class="card-content">
+                        <div class="game-icon-large">💎</div>
+                        <h3 class="game-name">Color Match</h3>
+                        <p class="game-genre">Match-3 Puzzle</p>
+                        <div class="game-stats">
+                            <span class="stat"><span class="stat-icon">🧩</span> Puzzle</span>
+                            <span class="stat"><span class="stat-icon">🎨</span> Casual</span>
+                        </div>
+                    </div>
+                    <div class="card-shine"></div>
+                </div>
+            </div>
+
+            <!-- Game 4: Sky Runner -->
+            <div class="game-card" data-game="sky-runner">
+                <div class="card-inner">
+                    <div class="card-glow"></div>
+                    <div class="card-content">
+                        <div class="game-icon-large">☁️</div>
+                        <h3 class="game-name">Sky Runner</h3>
+                        <p class="game-genre">Endless Runner</p>
+                        <div class="game-stats">
+                            <span class="stat"><span class="stat-icon">🏃</span> Runner</span>
+                            <span class="stat"><span class="stat-icon">⭐</span> Arcade</span>
+                        </div>
+                    </div>
+                    <div class="card-shine"></div>
+                </div>
+            </div>
+
+            <!-- Game 5: Mystery -->
+            <div class="game-card" data-game="mystery">
+                <div class="card-inner">
+                    <div class="card-glow"></div>
+                    <div class="card-content">
+                        <div class="game-icon-large">🎭</div>
+                        <h3 class="game-name">Mystery</h3>
+                        <p class="game-genre">Memory Card</p>
+                        <div class="game-stats">
+                            <span class="stat"><span class="stat-icon">🧠</span> Memory</span>
+                            <span class="stat"><span class="stat-icon">🎯</span> Focus</span>
+                        </div>
+                    </div>
+                    <div class="card-shine"></div>
+                </div>
+            </div>
+
+            <!-- Game 6: Sniper Elite -->
+            <div class="game-card" data-game="sniper-elite">
+                <div class="card-inner">
+                    <div class="card-glow"></div>
+                    <div class="card-content">
+                        <div class="game-icon-large">🎯</div>
+                        <h3 class="game-name">Sniper Elite</h3>
+                        <p class="game-genre">Target Shooting</p>
+                        <div class="game-stats">
+                            <span class="stat"><span class="stat-icon">🔫</span> Shooter</span>
+                            <span class="stat"><span class="stat-icon">⏱️</span> Timed</span>
+                        </div>
+                    </div>
+                    <div class="card-shine"></div>
+                </div>
+            </div>
+
+            <!-- Game 7: Fire Battle -->
+            <div class="game-card" data-game="fire-battle">
+                <div class="card-inner">
+                    <div class="card-glow"></div>
+                    <div class="card-content">
+                        <div class="game-icon-large">🔥</div>
+                        <h3 class="game-name">Fire Battle</h3>
+                        <p class="game-genre">Defense Game</p>
+                        <div class="game-stats">
+                            <span class="stat"><span class="stat-icon">🛡️</span> Defense</span>
+                            <span class="stat"><span class="stat-icon">👾</span> Waves</span>
+                        </div>
+                    </div>
+                    <div class="card-shine"></div>
+                </div>
+            </div>
+
+            <!-- Game 8: Music Beat -->
+            <div class="game-card" data-game="music-beat">
+                <div class="card-inner">
+                    <div class="card-glow"></div>
+                    <div class="card-content">
+                        <div class="game-icon-large">🎵</div>
+                        <h3 class="game-name">Music Beat</h3>
+                        <p class="game-genre">Rhythm Game</p>
+                        <div class="game-stats">
+                            <span class="stat"><span class="stat-icon">🎹</span> Rhythm</span>
+                            <span class="stat"><span class="stat-icon">🎤</span> Music</span>
+                        </div>
+                    </div>
+                    <div class="card-shine"></div>
+                </div>
+            </div>
+
+            <!-- Game 9: Piano Tiles -->
+            <div class="game-card" data-game="piano-tiles">
+                <div class="card-inner">
+                    <div class="card-glow"></div>
+                    <div class="card-content">
+                        <div class="game-icon-large">🎹</div>
+                        <h3 class="game-name">Piano Tiles</h3>
+                        <p class="game-genre">Rhythm Tapper</p>
+                        <div class="game-stats">
+                            <span class="stat"><span class="stat-icon">🎵</span> Music</span>
+                            <span class="stat"><span class="stat-icon">⚡</span> Fast</span>
+                        </div>
+                    </div>
+                    <div class="card-shine"></div>
+                </div>
+            </div>
+
+            <!-- Game 10: Sweet Baker -->
+            <div class="game-card" data-game="sweet-baker">
+                <div class="card-inner">
+                    <div class="card-glow"></div>
+                    <div class="card-content">
+                        <div class="game-icon-large">🍰</div>
+                        <h3 class="game-name">Sweet Baker</h3>
+                        <p class="game-genre">Timing Game</p>
+                        <div class="game-stats">
+                            <span class="stat"><span class="stat-icon">⏰</span> Timing</span>
+                            <span class="stat"><span class="stat-icon">🎂</span> Casual</span>
+                        </div>
+                    </div>
+                    <div class="card-shine"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <p class="footer-text">
+                <span class="footer-logo">PERPAHMIAN GAME STATION</span>
+                <span class="footer-divider">|</span>
+                <span>© 2026 perpahmian.ltd</span>
+            </p>
+            <div class="footer-links">
+                <a href="#" class="footer-link">Privacy</a>
+                <a href="#" class="footer-link">Terms</a>
+                <a href="#" class="footer-link">Contact</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="index.js"></script>
+</body>
+</html>

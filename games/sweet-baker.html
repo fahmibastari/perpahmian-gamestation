@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sweet Baker - Timing Game</title>
+    <link rel="stylesheet" href="shared-styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        .meter-container {
+            width: 400px;
+            height: 80px;
+            background: rgba(45, 27, 78, 0.6);
+            border: 2px solid rgba(168, 85, 247, 0.3);
+            border-radius: var(--radius-xl);
+            margin: 30px auto;
+            position: relative;
+            overflow: hidden;
+        }
+        .meter-bar {
+            width: 20px;
+            height: 100%;
+            background: linear-gradient(90deg, #a855f7, #ec4899);
+            position: absolute;
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.8);
+        }
+        .success-zone {
+            position: absolute;
+            height: 100%;
+            background: rgba(74, 222, 128, 0.3);
+            border: 2px solid #4ade80;
+        }
+        .recipe-display {
+            text-align: center;
+            font-size: 3rem;
+            margin: 30px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <a href="../index.html" class="back-btn"><span>←</span><span>Back to Home</span></a>
+            <h1 class="game-title">Sweet Baker</h1>
+            <div></div>
+        </div>
+        <div class="game-stats">
+            <div class="stat-item"><div class="stat-label">Score</div><div class="stat-value" id="score">0</div></div>
+            <div class="stat-item"><div class="stat-label">Level</div><div class="stat-value" id="level">1</div></div>
+            <div class="stat-item"><div class="stat-label">Perfect</div><div class="stat-value" id="perfect">0</div></div>
+        </div>
+        <div class="instructions"><h3>How to Play</h3><p>Press SPACE when the bar is in the green zone. Perfect timing = more points!</p></div>
+        <div class="recipe-display" id="recipe">🍰</div>
+        <div class="meter-container" id="meterContainer">
+            <div class="success-zone" id="successZone"></div>
+            <div class="meter-bar" id="meterBar"></div>
+        </div>
+        <div class="game-controls">
+            <button class="btn btn-primary" id="startBtn" onclick="startGame()">Start Baking</button>
+            <button class="btn btn-secondary" onclick="checkTiming()" id="actionBtn" disabled>Press SPACE to Bake</button>
+        </div>
+    </div>
+    <div class="modal" id="gameOverModal">
+        <div class="modal-content">
+            <h2 class="modal-title">Baking Complete!</h2>
+            <p class="modal-text">Final Score: <span id="finalScore">0</span></p>
+            <p class="modal-text">Perfect Bakes: <span id="finalPerfect">0</span></p>
+            <button class="btn btn-primary" onclick="startGame()">Bake Again</button>
+            <button class="btn btn-secondary" onclick="window.location.href='../index.html'">Back to Home</button>
+        </div>
+    </div>
+    <script>
+        const recipes = ['🍰', '🧁', '🍪', '🥐', '🍩', '🎂'];
+        let gameRunning = false, score = 0, level = 1, perfectCount = 0;
+        let barPosition = 0, barSpeed = 3, direction = 1;
+        let zoneStart = 150, zoneWidth = 100;
+        let roundsLeft = 10;
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && gameRunning) {
+                e.preventDefault();
+                checkTiming();
+            }
+        });
+        
+        function startGame() {
+            gameRunning = true;
+            score = 0; level = 1; perfectCount = 0; roundsLeft = 10;
+            barSpeed = 3; zoneWidth = 100;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('actionBtn').disabled = false;
+            document.getElementById('gameOverModal').classList.remove('active');
+            setupRound();
+            updateUI();
+            gameLoop();
+        }
+        
+        function setupRound() {
+            document.getElementById('recipe').textContent = recipes[Math.floor(Math.random() * recipes.length)];
+            zoneStart = Math.random() * 280;
+            document.getElementById('successZone').style.width = zoneWidth + 'px';
+            document.getElementById('successZone').style.left = zoneStart + 'px';
+        }
+        
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            barPosition += barSpeed * direction;
+            if (barPosition <= 0 || barPosition >= 380) direction *= -1;
+            
+            document.getElementById('meterBar').style.left = barPosition + 'px';
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function checkTiming() {
+            if (!gameRunning) return;
+            
+            const inZone = barPosition >= zoneStart && barPosition <= zoneStart + zoneWidth;
+            const centerZone = Math.abs(barPosition - (zoneStart + zoneWidth / 2)) < 15;
+            
+            if (centerZone) {
+                score += 100 * level;
+                perfectCount++;
+            } else if (inZone) {
+                score += 50 * level;
+            } else {
+                score = Math.max(0, score - 20);
+            }
+            
+            roundsLeft--;
+            if (roundsLeft <= 0) {
+                level++;
+                roundsLeft = 10;
+                barSpeed += 0.5;
+                zoneWidth = Math.max(40, zoneWidth - 10);
+                setupRound();
+            } else {
+                setupRound();
+            }
+            
+            updateUI();
+            
+            if (level > 5) endGame();
+        }
+        
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('level').textContent = level;
+            document.getElementById('perfect').textContent = perfectCount;
+        }
+        
+        function endGame() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalPerfect').textContent = perfectCount;
+            document.getElementById('gameOverModal').classList.add('active');
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('actionBtn').disabled = true;
+        }
+    </script>
+</body>
+</html>

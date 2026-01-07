@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mystery - Memory Card Game</title>
+    <link rel="stylesheet" href="shared-styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 120px);
+            gap: 15px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .card {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, var(--color-purple-600), var(--color-pink-600));
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            transition: transform 0.3s;
+            position: relative;
+            transform-style: preserve-3d;
+        }
+
+        .card:hover:not(.flipped):not(.matched) {
+            transform: scale(1.05);
+        }
+
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card.matched {
+            opacity: 0.5;
+            cursor: default;
+        }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-lg);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .card-front {
+            background: linear-gradient(135deg, var(--color-purple-600), var(--color-pink-600));
+        }
+
+        .card-back {
+            background: rgba(45, 27, 78, 0.9);
+            transform: rotateY(180deg);
+            font-size: 3rem;
+        }
+
+        @media (max-width: 768px) {
+            .card-grid {
+                grid-template-columns: repeat(4, 80px);
+                gap: 10px;
+            }
+            .card, .card-front, .card-back {
+                width: 80px;
+                height: 80px;
+            }
+            .card-back {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <a href="../index.html" class="back-btn">
+                <span>←</span>
+                <span>Back to Home</span>
+            </a>
+            <h1 class="game-title">Mystery</h1>
+            <div></div>
+        </div>
+
+        <div class="game-stats">
+            <div class="stat-item">
+                <div class="stat-label">Moves</div>
+                <div class="stat-value" id="moves">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Matches</div>
+                <div class="stat-value" id="matches">0/8</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Time</div>
+                <div class="stat-value" id="time">0:00</div>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h3>How to Play</h3>
+            <p>Flip cards to find matching pairs. Match all pairs to win!</p>
+        </div>
+
+        <div class="game-board">
+            <div class="card-grid" id="cardGrid"></div>
+        </div>
+
+        <div class="game-controls">
+            <button class="btn btn-primary" onclick="resetGame()">New Game</button>
+        </div>
+    </div>
+
+    <div class="modal" id="gameOverModal">
+        <div class="modal-content">
+            <h2 class="modal-title">Congratulations!</h2>
+            <p class="modal-text">Moves: <span id="finalMoves">0</span></p>
+            <p class="modal-text">Time: <span id="finalTime">0:00</span></p>
+            <button class="btn btn-primary" onclick="resetGame()">Play Again</button>
+            <button class="btn btn-secondary" onclick="window.location.href='../index.html'">Back to Home</button>
+        </div>
+    </div>
+
+    <script>
+        const symbols = ['🎮', '🎯', '🎨', '🎭', '🎪', '🎬', '🎵', '⭐'];
+        let cards = [];
+        let flippedCards = [];
+        let matchedPairs = 0;
+        let moves = 0;
+        let gameTime = 0;
+        let timerInterval = null;
+        let canFlip = true;
+        
+        function initGame() {
+            // Create pairs
+            const cardPairs = [...symbols, ...symbols];
+            cards = cardPairs.sort(() => Math.random() - 0.5);
+            
+            // Reset game state
+            flippedCards = [];
+            matchedPairs = 0;
+            moves = 0;
+            gameTime = 0;
+            canFlip = true;
+            
+            // Render cards
+            renderCards();
+            
+            // Start timer
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                gameTime++;
+                updateUI();
+            }, 1000);
+        }
+        
+        function renderCards() {
+            const grid = document.getElementById('cardGrid');
+            grid.innerHTML = '';
+            
+            cards.forEach((symbol, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.dataset.index = index;
+                card.onclick = () => flipCard(index);
+                
+                const front = document.createElement('div');
+                front.className = 'card-front';
+                front.textContent = '?';
+                front.style.fontSize = '3rem';
+                front.style.color = 'white';
+                
+                const back = document.createElement('div');
+                back.className = 'card-back';
+                back.textContent = symbol;
+                
+                card.appendChild(front);
+                card.appendChild(back);
+                grid.appendChild(card);
+            });
+        }
+        
+        function flipCard(index) {
+            if (!canFlip) return;
+            if (flippedCards.length >= 2) return;
+            
+            const card = document.querySelector(`[data-index="${index}"]`);
+            if (card.classList.contains('flipped') || card.classList.contains('matched')) return;
+            
+            card.classList.add('flipped');
+            flippedCards.push(index);
+            
+            if (flippedCards.length === 2) {
+                moves++;
+                canFlip = false;
+                checkMatch();
+            }
+            
+            updateUI();
+        }
+        
+        function checkMatch() {
+            const [index1, index2] = flippedCards;
+            const card1 = document.querySelector(`[data-index="${index1}"]`);
+            const card2 = document.querySelector(`[data-index="${index2}"]`);
+            
+            if (cards[index1] === cards[index2]) {
+                // Match found
+                setTimeout(() => {
+                    card1.classList.add('matched');
+                    card2.classList.add('matched');
+                    matchedPairs++;
+                    flippedCards = [];
+                    canFlip = true;
+                    
+                    if (matchedPairs === symbols.length) {
+                        endGame();
+                    }
+                    
+                    updateUI();
+                }, 500);
+            } else {
+                // No match
+                setTimeout(() => {
+                    card1.classList.remove('flipped');
+                    card2.classList.remove('flipped');
+                    flippedCards = [];
+                    canFlip = true;
+                }, 1000);
+            }
+        }
+        
+        function updateUI() {
+            document.getElementById('moves').textContent = moves;
+            document.getElementById('matches').textContent = `${matchedPairs}/${symbols.length}`;
+            
+            const mins = Math.floor(gameTime / 60);
+            const secs = gameTime % 60;
+            document.getElementById('time').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        function endGame() {
+            clearInterval(timerInterval);
+            
+            const mins = Math.floor(gameTime / 60);
+            const secs = gameTime % 60;
+            
+            document.getElementById('finalMoves').textContent = moves;
+            document.getElementById('finalTime').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+            
+            setTimeout(() => {
+                document.getElementById('gameOverModal').classList.add('active');
+            }, 500);
+        }
+        
+        function resetGame() {
+            document.getElementById('gameOverModal').classList.remove('active');
+            initGame();
+        }
+        
+        // Initialize game on load
+        initGame();
+    </script>
+</body>
+</html>

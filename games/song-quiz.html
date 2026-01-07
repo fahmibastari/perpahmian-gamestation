@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Song Quiz - Music Trivia</title>
+    <link rel="stylesheet" href="shared-styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        .quiz-container {
+            max-width: 700px;
+            margin: 20px auto;
+            padding: var(--spacing-xl);
+            background: rgba(20, 20, 30, 0.8);
+            border: 2px solid rgba(168, 85, 247, 0.3);
+            border-radius: var(--radius-xl);
+            backdrop-filter: blur(10px);
+        }
+
+        .progress-bar {
+            height: 10px;
+            background: rgba(45, 27, 78, 0.6);
+            border-radius: 20px;
+            overflow: hidden;
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #a855f7, #ec4899);
+            transition: width 0.3s;
+            box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+        }
+
+        .question {
+            text-align: center;
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .question-emoji {
+            font-size: 5rem;
+            margin-bottom: var(--spacing-md);
+            filter: drop-shadow(0 0 20px rgba(168, 85, 247, 0.5));
+        }
+
+        .question-text {
+            font-size: 1.5rem;
+            color: #fff;
+            font-weight: 600;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .options {
+            display: grid;
+            gap: var(--spacing-md);
+        }
+
+        .option {
+            padding: var(--spacing-md) var(--spacing-lg);
+            background: rgba(45, 27, 78, 0.4);
+            border: 2px solid rgba(168, 85, 247, 0.3);
+            border-radius: var(--radius-lg);
+            color: #fff;
+            font-size: 1.125rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        .option:hover {
+            background: rgba(168, 85, 247, 0.2);
+            border-color: #a855f7;
+            transform: translateX(5px);
+        }
+
+        .option.correct {
+            background: linear-gradient(135deg, rgba(74, 222, 128, 0.3), rgba(34, 197, 94, 0.3));
+            border-color: #4ade80;
+        }
+
+        .option.wrong {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(220, 38, 38, 0.3));
+            border-color: #ef4444;
+        }
+
+        .option.disabled {
+            pointer-events: none;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <a href="../index.html" class="back-btn"><span>←</span><span>Back to Home</span></a>
+            <h1 class="game-title">Song Quiz</h1>
+            <div></div>
+        </div>
+        <div class="game-stats">
+            <div class="stat-item"><div class="stat-label">Question</div><div class="stat-value" id="questionNum">1/10</div></div>
+            <div class="stat-item"><div class="stat-label">Score</div><div class="stat-value" id="score">0</div></div>
+            <div class="stat-item"><div class="stat-label">Streak</div><div class="stat-value" id="streak">0</div></div>
+        </div>
+        <div class="instructions"><h3>Music Trivia</h3><p>Test your music knowledge! Answer questions about genres, artists, and instruments.</p></div>
+        
+        <div class="quiz-container">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="question">
+                <div class="question-emoji" id="emoji">🎵</div>
+                <div class="question-text" id="questionText">Loading...</div>
+            </div>
+            <div class="options" id="options"></div>
+            <div class="game-controls" style="margin-top: var(--spacing-xl);">
+                <button class="btn btn-primary" id="nextBtn" onclick="nextQuestion()" style="display: none;">Next Question</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="gameOverModal">
+        <div class="modal-content">
+            <h2 class="modal-title">Quiz Complete!</h2>
+            <p class="modal-text">Final Score: <span id="finalScore">0</span>/100</p>
+            <p class="modal-text">Correct: <span id="correctAnswers">0</span>/10</p>
+            <button class="btn btn-primary" onclick="location.reload()">Play Again</button>
+            <button class="btn btn-secondary" onclick="window.location.href='../index.html'">Back to Home</button>
+        </div>
+    </div>
+
+    <script>
+        const questions = [
+            { emoji: '🎸', question: 'Which instrument has 6 strings?', options: ['Guitar', 'Piano', 'Drums', 'Violin'], correct: 0 },
+            { emoji: '🥁', question: 'What is the main percussion instrument?', options: ['Piano', 'Guitar', 'Drums', 'Flute'], correct: 2 },
+            { emoji: '🎹', question: 'Which instrument has black and white keys?', options: ['Drums', 'Guitar', 'Piano', 'Trumpet'], correct: 2 },
+            { emoji: '🎺', question: 'Which is a brass instrument?', options: ['Guitar', 'Drums', 'Piano', 'Trumpet'], correct: 3 },
+            { emoji: '🎵', question: 'Which genre originated in Jamaica?', options: ['Jazz', 'Reggae', 'Rock', 'Blues'], correct: 1 },
+            { emoji: '🎤', question: 'What do vocalists use to sing?', options: ['Instrument', 'Voice', 'Drums', 'Piano'], correct: 1 },
+            { emoji: '🎸', question: 'Which genre uses electric guitars?', options: ['Classical', 'Rock', 'Jazz', 'Opera'], correct: 1 },
+            { emoji: '🎧', question: 'What do DJs use to listen?', options: ['Speakers', 'Headphones', 'Drums', 'Piano'], correct: 1 },
+            { emoji: '🎭', question: 'Which combines music with theater?', options: ['Concert', 'Musical', 'Album', 'Podcast'], correct: 1 },
+            { emoji: '🎶', question: 'How many notes in an octave?', options: ['5', '7', '8', '12'], correct: 2 }
+        ];
+
+        let currentQuestion = 0;
+        let score = 0;
+        let streak = 0;
+        let correctCount = 0;
+
+        function loadQuestion() {
+            const q = questions[currentQuestion];
+            document.getElementById('emoji').textContent = q.emoji;
+            document.getElementById('questionText').textContent = q.question;
+            document.getElementById('questionNum').textContent = `${currentQuestion + 1}/10`;
+            document.getElementById('progressFill').style.width = ((currentQuestion / 10) * 100) + '%';
+
+            const optionsDiv = document.getElementById('options');
+            optionsDiv.innerHTML = '';
+
+            q.options.forEach((option, index) => {
+                const btn = document.createElement('div');
+                btn.className = 'option';
+                btn.textContent = option;
+                btn.onclick = () => selectAnswer(index);
+                optionsDiv.appendChild(btn);
+            });
+
+            document.getElementById('nextBtn').style.display = 'none';
+        }
+
+        function selectAnswer(selected) {
+            const q = questions[currentQuestion];
+            const options = document.querySelectorAll('.option');
+
+            options.forEach((opt, idx) => {
+                opt.classList.add('disabled');
+                if (idx === q.correct) {
+                    opt.classList.add('correct');
+                }
+                if (idx === selected && idx !== q.correct) {
+                    opt.classList.add('wrong');
+                }
+            });
+
+            if (selected === q.correct) {
+                score += 10;
+                streak++;
+                correctCount++;
+                if (streak > 2) score += 5; // Bonus for streak
+            } else {
+                streak = 0;
+            }
+
+            document.getElementById('score').textContent = score;
+            document.getElementById('streak').textContent = streak;
+            document.getElementById('nextBtn').style.display = 'block';
+        }
+
+        function nextQuestion() {
+            currentQuestion++;
+            if (currentQuestion < questions.length) {
+                loadQuestion();
+            } else {
+                endGame();
+            }
+        }
+
+        function endGame() {
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('correctAnswers').textContent = correctCount;
+            document.getElementById('gameOverModal').classList.add('active');
+        }
+
+        loadQuestion();
+    </script>
+</body>
+</html>

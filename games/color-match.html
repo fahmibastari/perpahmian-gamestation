@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Match - Match 3 Puzzle Game</title>
+    <link rel="stylesheet" href="shared-styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            grid-template-rows: repeat(8, 60px);
+            gap: 4px;
+            margin: 0 auto;
+        }
+
+        .gem {
+            width: 60px;
+            height: 60px;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .gem:hover {
+            transform: scale(1.05);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .gem.selected {
+            border: 3px solid white;
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+
+        .gem.matching {
+            animation: pulse 0.3s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: repeat(8, 45px);
+                grid-template-rows: repeat(8, 45px);
+            }
+            .gem {
+                width: 45px;
+                height: 45px;
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <a href="../index.html" class="back-btn">
+                <span>←</span>
+                <span>Back to Home</span>
+            </a>
+            <h1 class="game-title">Color Match</h1>
+            <div></div>
+        </div>
+
+        <div class="game-stats">
+            <div class="stat-item">
+                <div class="stat-label">Score</div>
+                <div class="stat-value" id="score">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Moves</div>
+                <div class="stat-value" id="moves">30</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Best Combo</div>
+                <div class="stat-value" id="combo">0</div>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h3>How to Play</h3>
+            <p>Swap adjacent gems to create matches of 3 or more. Longer combos = higher scores!</p>
+        </div>
+
+        <div class="game-board">
+            <div class="grid" id="grid"></div>
+        </div>
+
+        <div class="game-controls">
+            <button class="btn btn-primary" onclick="resetGame()">New Game</button>
+        </div>
+    </div>
+
+    <div class="modal" id="gameOverModal">
+        <div class="modal-content">
+            <h2 class="modal-title">Game Over!</h2>
+            <p class="modal-text">Final Score: <span id="finalScore">0</span></p>
+            <button class="btn btn-primary" onclick="resetGame()">Play Again</button>
+            <button class="btn btn-secondary" onclick="window.location.href='../index.html'">Back to Home</button>
+        </div>
+    </div>
+
+    <script>
+        const GRID_SIZE = 8;
+        const GEMS = ['💎', '💜', '💗', '⭐', '🔷', '🟣'];
+        const COLORS = [
+            'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+            'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+            'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+            'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
+            'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)'
+        ];
+
+        let grid = [];
+        let selectedGem = null;
+        let score = 0;
+        let moves = 30;
+        let bestCombo = 0;
+        let isAnimating = false;
+
+        function initGame() {
+            grid = [];
+            for (let i = 0; i < GRID_SIZE; i++) {
+                grid[i] = [];
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    grid[i][j] = Math.floor(Math.random() * GEMS.length);
+                }
+            }
+            // Remove initial matches
+            removeInitialMatches();
+            renderGrid();
+        }
+
+        function removeInitialMatches() {
+            for (let i = 0; i < GRID_SIZE; i++) {
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    while (hasMatch(i, j)) {
+                        grid[i][j] = Math.floor(Math.random() * GEMS.length);
+                    }
+                }
+            }
+        }
+
+        function hasMatch(row, col) {
+            const gem = grid[row][col];
+            // Check horizontal
+            if (col >= 2 && grid[row][col-1] === gem && grid[row][col-2] === gem) return true;
+            // Check vertical
+            if (row >= 2 && grid[row-1][col] === gem && grid[row-2][col] === gem) return true;
+            return false;
+        }
+
+        function renderGrid() {
+            const gridEl = document.getElementById('grid');
+            gridEl.innerHTML = '';
+            
+            for (let i = 0; i < GRID_SIZE; i++) {
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    const gem = document.createElement('div');
+                    gem.className = 'gem';
+                    gem.dataset.row = i;
+                    gem.dataset.col = j;
+                    gem.style.background = COLORS[grid[i][j]];
+                    gem.textContent = GEMS[grid[i][j]];
+                    gem.onclick = () => selectGem(i, j);
+                    gridEl.appendChild(gem);
+                }
+            }
+            
+            updateStats();
+        }
+
+        function selectGem(row, col) {
+            if (isAnimating || moves <= 0) return;
+
+            const gem = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+            
+            if (selectedGem === null) {
+                selectedGem = { row, col };
+                gem.classList.add('selected');
+            } else {
+                const prevGem = document.querySelector(`[data-row="${selectedGem.row}"][data-col="${selectedGem.col}"]`);
+                prevGem.classList.remove('selected');
+                
+                if (isAdjacent(selectedGem.row, selectedGem.col, row, col)) {
+                    swapGems(selectedGem.row, selectedGem.col, row, col);
+                }
+                
+                selectedGem = null;
+            }
+        }
+
+        function isAdjacent(r1, c1, r2, c2) {
+            return (Math.abs(r1 - r2) === 1 && c1 === c2) || 
+                   (Math.abs(c1 - c2) === 1 && r1 === r2);
+        }
+
+        function swapGems(r1, c1, r2, c2) {
+            [grid[r1][c1], grid[r2][c2]] = [grid[r2][c2], grid[r1][c1]];
+            renderGrid();
+            
+            setTimeout(() => {
+                const matches = findMatches();
+                if (matches.length > 0) {
+                    moves--;
+                    processMatches(matches);
+                } else {
+                    // Swap back if no match
+                    [grid[r1][c1], grid[r2][c2]] = [grid[r2][c2], grid[r1][c1]];
+                    renderGrid();
+                }
+            }, 200);
+        }
+
+        function findMatches() {
+            const matches = new Set();
+            
+            // Check horizontal
+            for (let i = 0; i < GRID_SIZE; i++) {
+                for (let j = 0; j < GRID_SIZE - 2; j++) {
+                    const gem = grid[i][j];
+                    if (gem === grid[i][j+1] && gem === grid[i][j+2]) {
+                        matches.add(`${i},${j}`);
+                        matches.add(`${i},${j+1}`);
+                        matches.add(`${i},${j+2}`);
+                        // Check for longer matches
+                        let k = j + 3;
+                        while (k < GRID_SIZE && grid[i][k] === gem) {
+                            matches.add(`${i},${k}`);
+                            k++;
+                        }
+                    }
+                }
+            }
+            
+            // Check vertical
+            for (let i = 0; i < GRID_SIZE - 2; i++) {
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    const gem = grid[i][j];
+                    if (gem === grid[i+1][j] && gem === grid[i+2][j]) {
+                        matches.add(`${i},${j}`);
+                        matches.add(`${i+1},${j}`);
+                        matches.add(`${i+2},${j}`);
+                        // Check for longer matches
+                        let k = i + 3;
+                        while (k < GRID_SIZE && grid[k][j] === gem) {
+                            matches.add(`${k},${j}`);
+                            k++;
+                        }
+                    }
+                }
+            }
+            
+            return Array.from(matches).map(s => s.split(',').map(Number));
+        }
+
+        function processMatches(matches) {
+            isAnimating = true;
+            
+            // Animate matching gems
+            matches.forEach(([row, col]) => {
+                const gem = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                if (gem) gem.classList.add('matching');
+            });
+            
+            // Calculate score
+            const matchCount = matches.length;
+            const baseScore = matchCount * 10;
+            const comboBonus = matchCount > 3 ? (matchCount - 3) * 20 : 0;
+            score += baseScore + comboBonus;
+            
+            if (matchCount > bestCombo) {
+                bestCombo = matchCount;
+            }
+            
+            setTimeout(() => {
+                // Remove matched gems
+                matches.forEach(([row, col]) => {
+                    grid[row][col] = -1;
+                });
+                
+                // Drop gems
+                dropGems();
+                
+                // Fill empty spaces
+                fillEmptySpaces();
+                
+                renderGrid();
+                
+                // Check for new matches
+                setTimeout(() => {
+                    const newMatches = findMatches();
+                    if (newMatches.length > 0) {
+                        processMatches(newMatches);
+                    } else {
+                        isAnimating = false;
+                        checkGameOver();
+                    }
+                }, 200);
+            }, 300);
+        }
+
+        function dropGems() {
+            for (let j = 0; j < GRID_SIZE; j++) {
+                let emptyRow = GRID_SIZE - 1;
+                for (let i = GRID_SIZE - 1; i >= 0; i--) {
+                    if (grid[i][j] !== -1) {
+                        if (i !== emptyRow) {
+                            grid[emptyRow][j] = grid[i][j];
+                            grid[i][j] = -1;
+                        }
+                        emptyRow--;
+                    }
+                }
+            }
+        }
+
+        function fillEmptySpaces() {
+            for (let i = 0; i < GRID_SIZE; i++) {
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    if (grid[i][j] === -1) {
+                        grid[i][j] = Math.floor(Math.random() * GEMS.length);
+                    }
+                }
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('moves').textContent = moves;
+            document.getElementById('combo').textContent = bestCombo;
+        }
+
+        function checkGameOver() {
+            if (moves <= 0) {
+                document.getElementById('finalScore').textContent = score;
+                document.getElementById('gameOverModal').classList.add('active');
+            }
+        }
+
+        function resetGame() {
+            score = 0;
+            moves = 30;
+            bestCombo = 0;
+            selectedGem = null;
+            isAnimating = false;
+            document.getElementById('gameOverModal').classList.remove('active');
+            initGame();
+        }
+
+        // Initialize game on load
+        initGame();
+    </script>
+</body>
+</html>

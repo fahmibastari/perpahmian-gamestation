@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sky Runner - Endless Runner Game</title>
+    <link rel="stylesheet" href="shared-styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: var(--radius-xl);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <a href="../index.html" class="back-btn">
+                <span>←</span>
+                <span>Back to Home</span>
+            </a>
+            <h1 class="game-title">Sky Runner</h1>
+            <div></div>
+        </div>
+
+        <div class="game-stats">
+            <div class="stat-item">
+                <div class="stat-label">Distance</div>
+                <div class="stat-value" id="distance">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">High Score</div>
+                <div class="stat-value" id="highScore">0</div>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h3>How to Play</h3>
+            <p>Press SPACE or tap to jump. Avoid obstacles and collect stars!</p>
+        </div>
+
+        <canvas id="gameCanvas" class="game-canvas" width="800" height="400"></canvas>
+
+        <div class="game-controls">
+            <button class="btn btn-primary" id="startBtn" onclick="startGame()">Start Game</button>
+        </div>
+    </div>
+
+    <div class="modal" id="gameOverModal">
+        <div class="modal-content">
+            <h2 class="modal-title">Game Over!</h2>
+            <p class="modal-text">Distance: <span id="finalDistance">0</span></p>
+            <button class="btn btn-primary" onclick="restartGame()">Play Again</button>
+            <button class="btn btn-secondary" onclick="window.location.href='../index.html'">Back to Home</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let gameRunning = false;
+        let distance = 0;
+        let highScore = localStorage.getItem('skyRunnerHighScore') || 0;
+        let gameSpeed = 5;
+        let gravity = 0.6;
+        
+        // Player
+        const player = {
+            x: 100,
+            y: 250,
+            width: 40,
+            height: 40,
+            dy: 0,
+            jumpPower: -12,
+            grounded: false,
+            color: '#a855f7'
+        };
+        
+        // Obstacles
+        let obstacles = [];
+        let obstacleTimer = 0;
+        const obstacleInterval = 100;
+        
+        // Stars
+        let stars = [];
+        let starTimer = 0;
+        const starInterval = 80;
+        
+        // Clouds (background)
+        let clouds = [];
+        
+        function init() {
+            document.getElementById('highScore').textContent = highScore;
+            createClouds();
+        }
+        
+        function createClouds() {
+            clouds = [];
+            for (let i = 0; i < 5; i++) {
+                clouds.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * 200,
+                    width: 60 + Math.random() * 40,
+                    speed: 0.5 + Math.random() * 0.5
+                });
+            }
+        }
+        
+        function startGame() {
+            if (gameRunning) return;
+            
+            gameRunning = true;
+            distance = 0;
+            gameSpeed = 5;
+            player.y = 250;
+            player.dy = 0;
+            obstacles = [];
+            stars = [];
+            obstacleTimer = 0;
+            starTimer = 0;
+            
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('gameOverModal').classList.remove('active');
+            
+            gameLoop();
+        }
+        
+        function restartGame() {
+            startGame();
+        }
+        
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            update();
+            draw();
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function update() {
+            // Update distance
+            distance++;
+            
+            // Increase difficulty
+            if (distance % 500 === 0) {
+                gameSpeed += 0.5;
+            }
+            
+            // Player physics
+            player.dy += gravity;
+            player.y += player.dy;
+            
+            // Ground collision
+            if (player.y + player.height >= canvas.height - 50) {
+                player.y = canvas.height - 50 - player.height;
+                player.dy = 0;
+                player.grounded = true;
+            } else {
+                player.grounded = false;
+            }
+            
+            // Spawn obstacles
+            obstacleTimer++;
+            if (obstacleTimer > obstacleInterval) {
+                const height = 30 + Math.random() * 40;
+                obstacles.push({
+                    x: canvas.width,
+                    y: canvas.height - 50 - height,
+                    width: 30,
+                    height: height,
+                    color: '#ec4899'
+                });
+                obstacleTimer = 0;
+            }
+            
+            // Spawn stars
+            starTimer++;
+            if (Math.random() < 0.02) {
+                stars.push({
+                    x: canvas.width,
+                    y: canvas.height - 150 - Math.random() * 100,
+                    size: 15,
+                    collected: false
+                });
+            }
+            
+            // Update obstacles
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                obstacles[i].x -= gameSpeed;
+                
+                // Check collision
+                if (checkCollision(player, obstacles[i])) {
+                    endGame();
+                    return;
+                }
+                
+                // Remove off-screen obstacles
+                if (obstacles[i].x + obstacles[i].width < 0) {
+                    obstacles.splice(i, 1);
+                }
+            }
+            
+            // Update stars
+            for (let i = stars.length - 1; i >= 0; i--) {
+                stars[i].x -= gameSpeed;
+                
+                // Check collection
+                if (!stars[i].collected && checkCollision(player, stars[i])) {
+                    stars[i].collected = true;
+                    distance += 50;
+                }
+                
+                // Remove off-screen stars
+                if (stars[i].x + stars[i].size < 0) {
+                    stars.splice(i, 1);
+                }
+            }
+            
+            // Update clouds
+            clouds.forEach(cloud => {
+                cloud.x -= cloud.speed;
+                if (cloud.x + cloud.width < 0) {
+                    cloud.x = canvas.width;
+                    cloud.y = Math.random() * 200;
+                }
+            });
+            
+            // Update UI
+            document.getElementById('distance').textContent = Math.floor(distance / 10);
+        }
+        
+        function draw() {
+            // Sky gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#1a0b2e');
+            gradient.addColorStop(1, '#2d1b4e');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Clouds
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            clouds.forEach(cloud => {
+                ctx.beginPath();
+                ctx.arc(cloud.x, cloud.y, cloud.width / 3, 0, Math.PI * 2);
+                ctx.arc(cloud.x + cloud.width / 3, cloud.y - 10, cloud.width / 4, 0, Math.PI * 2);
+                ctx.arc(cloud.x + cloud.width / 2, cloud.y, cloud.width / 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            
+            // Ground
+            ctx.fillStyle = '#0f0420';
+            ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+            
+            // Ground line
+            ctx.strokeStyle = '#a855f7';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height - 50);
+            ctx.lineTo(canvas.width, canvas.height - 50);
+            ctx.stroke();
+            
+            // Player
+            ctx.fillStyle = player.color;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = player.color;
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            ctx.shadowBlur = 0;
+            
+            // Player eyes
+            ctx.fillStyle = 'white';
+            ctx.fillRect(player.x + 10, player.y + 10, 8, 8);
+            ctx.fillRect(player.x + 22, player.y + 10, 8, 8);
+            
+            // Obstacles
+            obstacles.forEach(obs => {
+                ctx.fillStyle = obs.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = obs.color;
+                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                ctx.shadowBlur = 0;
+            });
+            
+            // Stars
+            stars.forEach(star => {
+                if (!star.collected) {
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#fbbf24';
+                    ctx.font = `${star.size}px Arial`;
+                    ctx.fillText('⭐', star.x, star.y);
+                    ctx.shadowBlur = 0;
+                }
+            });
+        }
+        
+        function checkCollision(rect1, rect2) {
+            return rect1.x < (rect2.x + (rect2.width || rect2.size)) &&
+                   (rect1.x + rect1.width) > rect2.x &&
+                   rect1.y < (rect2.y + (rect2.height || rect2.size)) &&
+                   (rect1.y + rect1.height) > rect2.y;
+        }
+        
+        function jump() {
+            if (player.grounded && gameRunning) {
+                player.dy = player.jumpPower;
+                player.grounded = false;
+            }
+        }
+        
+        function endGame() {
+            gameRunning = false;
+            
+            const finalDistance = Math.floor(distance / 10);
+            if (finalDistance > highScore) {
+                highScore = finalDistance;
+                localStorage.setItem('skyRunnerHighScore', highScore);
+                document.getElementById('highScore').textContent = highScore;
+            }
+            
+            document.getElementById('finalDistance').textContent = finalDistance;
+            document.getElementById('gameOverModal').classList.add('active');
+            document.getElementById('startBtn').disabled = false;
+        }
+        
+        // Controls
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                jump();
+            }
+        });
+        
+        canvas.addEventListener('click', jump);
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            jump();
+        });
+        
+        // Initialize
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fire Battle - Defense Game</title>
+    <link rel="stylesheet" href="shared-styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <a href="../index.html" class="back-btn"><span>←</span><span>Back to Home</span></a>
+            <h1 class="game-title">Fire Battle</h1>
+            <div></div>
+        </div>
+        <div class="game-stats">
+            <div class="stat-item"><div class="stat-label">Score</div><div class="stat-value" id="score">0</div></div>
+            <div class="stat-item"><div class="stat-label">Wave</div><div class="stat-value" id="wave">1</div></div>
+            <div class="stat-item"><div class="stat-label">Lives</div><div class="stat-value" id="lives">10</div></div>
+        </div>
+        <div class="instructions"><h3>How to Play</h3><p>Click on enemies to destroy them before they reach the bottom!</p></div>
+        <canvas id="gameCanvas" class="game-canvas" width="800" height="600"></canvas>
+        <div class="game-controls"><button class="btn btn-primary" id="startBtn" onclick="startGame()">Start Defense</button></div>
+    </div>
+    <div class="modal" id="gameOverModal">
+        <div class="modal-content">
+            <h2 class="modal-title">Defense Failed!</h2>
+            <p class="modal-text">Final Score: <span id="finalScore">0</span></p>
+            <p class="modal-text">Waves Survived: <span id="finalWave">0</span></p>
+            <button class="btn btn-primary" onclick="startGame()">Try Again</button>
+            <button class="btn btn-secondary" onclick="window.location.href='../index.html'">Back to Home</button>
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let gameRunning = false;
+        let score = 0, wave = 1, lives = 10;
+        let enemies = [];
+        let particles = [];
+        let spawnTimer = 0;
+        
+        canvas.addEventListener('click', (e) => {
+            if (!gameRunning) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            enemies.forEach((enemy, i) => {
+                const dist = Math.hypot(x - enemy.x, y - enemy.y);
+                if (dist < enemy.size) {
+                    score += 10 * wave;
+                    enemies.splice(i, 1);
+                    createExplosion(enemy.x, enemy.y);
+                    updateUI();
+                }
+            });
+        });
+        
+        function startGame() {
+            gameRunning = true;
+            score = 0; wave = 1; lives = 10;
+            enemies = []; particles = []; spawnTimer = 0;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('gameOverModal').classList.remove('active');
+            updateUI();
+            gameLoop();
+        }
+        
+        function gameLoop() {
+            if (!gameRunning) return;
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function update() {
+            spawnTimer++;
+            const spawnRate = Math.max(20, 60 - wave * 3);
+            
+            if (spawnTimer > spawnRate) {
+                enemies.push({
+                    x: Math.random() * canvas.width,
+                    y: 0,
+                    size: 20 + Math.random() * 20,
+                    speed: 1 + wave * 0.3,
+                    color: `hsl(${Math.random() * 60}, 80%, 50%)`
+                });
+                spawnTimer = 0;
+            }
+            
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                enemies[i].y += enemies[i].speed;
+                if (enemies[i].y > canvas.height) {
+                    enemies.splice(i, 1);
+                    lives--;
+                    if (lives <= 0) endGame();
+                    updateUI();
+                }
+            }
+            
+            particles.forEach((p, i) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life--;
+                if (p.life <= 0) particles.splice(i, 1);
+            });
+            
+            if (enemies.length === 0 && spawnTimer < 10) {
+                wave++;
+                updateUI();
+            }
+        }
+        
+        function draw() {
+            const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grad.addColorStop(0, '#0f0420');
+            grad.addColorStop(1, '#1a0b2e');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            enemies.forEach(e => {
+                ctx.fillStyle = e.color;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = e.color;
+                ctx.beginPath();
+                ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                
+                ctx.fillStyle = 'white';
+                ctx.font = `${e.size}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.fillText('👾', e.x, e.y + e.size / 2);
+            });
+            
+            particles.forEach(p => {
+                ctx.fillStyle = `rgba(${p.color}, ${p.life / 30})`;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+        
+        function createExplosion(x, y) {
+            for (let i = 0; i < 15; i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    size: 3 + Math.random() * 3,
+                    life: 30,
+                    color: '255, 100, 50'
+                });
+            }
+        }
+        
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('wave').textContent = wave;
+            document.getElementById('lives').textContent = lives;
+        }
+        
+        function endGame() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalWave').textContent = wave;
+            document.getElementById('gameOverModal').classList.add('active');
+            document.getElementById('startBtn').disabled = false;
+        }
+    </script>
+</body>
+</html>

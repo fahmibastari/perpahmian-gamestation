@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Beat - Rhythm Game</title>
+    <link rel="stylesheet" href="shared-styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        .note-lane {
+            width: 100px;
+            height: 500px;
+            background: rgba(45, 27, 78, 0.4);
+            border: 2px solid rgba(168, 85, 247, 0.3);
+            border-radius: var(--radius-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .lanes-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .note {
+            position: absolute;
+            width: 80px;
+            height: 30px;
+            border-radius: var(--radius-md);
+            left: 10px;
+            box-shadow: 0 0 15px currentColor;
+            animation: noteGlow 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes noteGlow {
+            to { box-shadow: 0 0 25px currentColor; }
+        }
+
+        .hit-zone {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            width: 80px;
+            height: 40px;
+            border: 3px solid rgba(168, 85, 247, 0.5);
+            border-radius: var(--radius-md);
+            background: rgba(168, 85, 247, 0.1);
+        }
+
+        .key-label {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--color-purple-400);
+        }
+
+        .visualizer {
+            display: flex;
+            gap: 3px;
+            justify-content: center;
+            align-items: flex-end;
+            height: 80px;
+            margin: 20px 0;
+            padding: 10px;
+            background: rgba(15, 4, 32, 0.6);
+            border-radius: var(--radius-lg);
+        }
+
+        .viz-bar {
+            width: 15px;
+            background: linear-gradient(180deg, #a855f7, #ec4899);
+            border-radius: 3px;
+            transition: height 0.05s;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <a href="../index.html" class="back-btn"><span>←</span><span>Back to Home</span></a>
+            <h1 class="game-title">Music Beat</h1>
+            <div></div>
+        </div>
+        <div class="game-stats">
+            <div class="stat-item"><div class="stat-label">Score</div><div class="stat-value" id="score">0</div></div>
+            <div class="stat-item"><div class="stat-label">Combo</div><div class="stat-value" id="combo">0</div></div>
+            <div class="stat-item"><div class="stat-label">Accuracy</div><div class="stat-value" id="accuracy">100%</div></div>
+        </div>
+        <div class="instructions"><h3>How to Play</h3><p>Press D, F, J, K when notes reach the zone! Feel the beat! 🎵</p></div>
+        
+        <div class="visualizer" id="visualizer"></div>
+        <div class="lanes-container" id="lanes"></div>
+
+        <div class="game-controls">
+            <button class="btn btn-primary" id="startBtn" onclick="startGame()">Start Song</button>
+        </div>
+    </div>
+    <div class="modal" id="gameOverModal">
+        <div class="modal-content">
+            <h2 class="modal-title">Song Complete!</h2>
+            <p class="modal-text">Final Score: <span id="finalScore">0</span></p>
+            <p class="modal-text">Max Combo: <span id="maxCombo">0</span></p>
+            <p class="modal-text">Accuracy: <span id="finalAccuracy">0%</span></p>
+            <button class="btn btn-primary" onclick="startGame()">Play Again</button>
+            <button class="btn btn-secondary" onclick="window.location.href='../index.html'">Back to Home</button>
+        </div>
+    </div>
+    <script>
+        const lanes = ['D', 'F', 'J', 'K'];
+        const colors = ['#a855f7', '#ec4899', '#00f2fe', '#fbbf24'];
+        
+        // Tone.js synth for background music
+        let synth, bassSynth, drumSynth;
+        let bgLoop;
+        
+        let gameRunning = false;
+        let score = 0, combo = 0, maxCombo = 0;
+        let totalNotes = 0, hitNotes = 0;
+        let notes = [];
+        let noteSpeed = 3;
+        let spawnTimer = 0;
+        
+        // Procedural beat pattern
+        const beatPattern = [
+            [0, 0], [1, 20], [2, 40], [3, 60],
+            [0, 80], [2, 90], [1, 100], [3, 120],
+            [0, 140], [1, 140], [2, 160], [3, 180],
+            [0, 200], [1, 220], [2, 220], [3, 240],
+            [0, 260], [2, 280], [1, 300], [3, 320],
+            [0, 340], [1, 360], [2, 380], [3, 400],
+            [0, 420], [1, 420], [2, 420], [3, 420],
+            [0, 440], [2, 460], [1, 480], [3, 500]
+        ];
+        
+        let beatIndex = 0;
+        
+        // Create visualizer
+        const visualizer = document.getElementById('visualizer');
+        const vizBars = [];
+        for (let i = 0; i < 20; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'viz-bar';
+            bar.style.height = '10px';
+            visualizer.appendChild(bar);
+            vizBars.push(bar);
+        }
+
+        function animateViz() {
+            vizBars.forEach(bar => {
+                const height = 10 + Math.random() * 60;
+                bar.style.height = height + 'px';
+            });
+            if (gameRunning) requestAnimationFrame(animateViz);
+        }
+        
+        function init() {
+            // Create synths
+            synth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "triangle" },
+                envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
+            }).toDestination();
+            
+            bassSynth = new Tone.Synth({
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.2 }
+            }).toDestination();
+            
+            drumSynth = new Tone.MembraneSynth().toDestination();
+            
+            // Create lanes
+            const lanesContainer = document.getElementById('lanes');
+            lanesContainer.innerHTML = '';
+            
+            lanes.forEach((key, i) => {
+                const lane = document.createElement('div');
+                lane.className = 'note-lane';
+                lane.id = `lane-${i}`;
+                
+                const hitZone = document.createElement('div');
+                hitZone.className = 'hit-zone';
+                lane.appendChild(hitZone);
+                
+                const label = document.createElement('div');
+                label.className = 'key-label';
+                label.textContent = key;
+                lane.appendChild(label);
+                
+                lanesContainer.appendChild(lane);
+            });
+            
+            // Keyboard controls
+            document.addEventListener('keydown', handleKeyPress);
+        }
+        
+        function startGame() {
+            Tone.start();
+            
+            gameRunning = true;
+            score = 0; combo = 0; maxCombo = 0;
+            notes = []; beatIndex = 0; spawnTimer = 0;
+            totalNotes = beatPattern.length;
+            hitNotes = 0;
+            
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('gameOverModal').classList.remove('active');
+            
+            // Start background music
+            startBackgroundMusic();
+            animateViz();
+            gameLoop();
+        }
+        
+        function startBackgroundMusic() {
+            // Simple melodic loop
+            const melody = ["C4", "E4", "G4", "F4"];
+            let noteIndex = 0;
+            
+            bgLoop = new Tone.Loop((time) => {
+                synth.triggerAttackRelease(melody[noteIndex % melody.length], "8n", time);
+                bassSynth.triggerAttackRelease("C2", "8n", time);
+                drumSynth.triggerAttackRelease("C1", "8n", time);
+                noteIndex++;
+            }, "4n");
+            
+            bgLoop.start(0);
+            Tone.Transport.start();
+        }
+        
+        function handleKeyPress(e) {
+            if (!gameRunning) return;
+            
+            const key = e.key.toUpperCase();
+            const laneIndex = lanes.indexOf(key);
+            
+            if (laneIndex !== -1) {
+                checkHit(laneIndex);
+                
+                // Play note
+                const noteFreqs = ["C5", "D5", "E5", "G5"];
+                synth.triggerAttackRelease(noteFreqs[laneIndex], "16n");
+            }
+        }
+        
+        function checkHit(laneIndex) {
+            const hitZoneY = 450;
+            const perfectRange = 30;
+            const goodRange = 60;
+            
+            let hitNote = null;
+            let bestDistance = Infinity;
+            
+            notes.forEach(note => {
+                if (note.lane === laneIndex) {
+                    const distance = Math.abs(note.y - hitZoneY);
+                    if (distance < bestDistance && distance < goodRange) {
+                        bestDistance = distance;
+                        hitNote = note;
+                    }
+                }
+            });
+            
+            if (hitNote) {
+                notes = notes.filter(n => n !== hitNote);
+                hitNotes++;
+                
+                if (bestDistance < perfectRange) {
+                    score += 100 * (combo + 1);
+                    combo++;
+                } else {
+                    score += 50 * (combo + 1);
+                    combo++;
+                }
+                
+                maxCombo = Math.max(maxCombo, combo);
+                
+                // Visual feedback
+                const lane = document.getElementById(`lane-${laneIndex}`);
+                lane.style.background = `rgba(168, 85, 247, 0.3)`;
+                setTimeout(() => {
+                    lane.style.background = 'rgba(45, 27, 78, 0.4)';
+                }, 100);
+            } else {
+                combo = 0;
+            }
+            
+            updateUI();
+        }
+        
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            spawnTimer++;
+            
+            // Spawn notes based on pattern
+            if (beatIndex < beatPattern.length) {
+                const [lane, timing] = beatPattern[beatIndex];
+                if (spawnTimer >= timing) {
+                    notes.push({
+                        lane: lane,
+                        y: 0,
+                        color: colors[lane]
+                    });
+                    beatIndex++;
+                }
+            }
+            
+            // Update notes
+            for (let i = notes.length - 1; i >= 0; i--) {
+                notes[i].y += noteSpeed;
+                
+                // Remove missed notes
+                if (notes[i].y > 500) {
+                    notes.splice(i, 1);
+                    combo = 0;
+                }
+            }
+            
+            // Check if song is complete
+            if (beatIndex >= beatPattern.length && notes.length === 0) {
+                endGame();
+                return;
+            }
+            
+            draw();
+            updateUI();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function draw() {
+            // Clear and redraw notes
+            lanes.forEach((_, i) => {
+                const lane = document.getElementById(`lane-${i}`);
+                const existingNotes = lane.querySelectorAll('.note');
+                existingNotes.forEach(n => n.remove());
+            });
+            
+            notes.forEach(note => {
+                const lane = document.getElementById(`lane-${note.lane}`);
+                const noteEl = document.createElement('div');
+                noteEl.className = 'note';
+                noteEl.style.backgroundColor = note.color;
+                noteEl.style.top = note.y + 'px';
+                lane.appendChild(noteEl);
+            });
+        }
+        
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('combo').textContent = combo;
+            
+            const accuracy = totalNotes > 0 ? Math.round((hitNotes / totalNotes) * 100) : 100;
+            document.getElementById('accuracy').textContent = accuracy + '%';
+        }
+        
+        function endGame() {
+            gameRunning = false;
+            
+            // Stop music
+            if (bgLoop) bgLoop.stop();
+            Tone.Transport.stop();
+            
+            const accuracy = totalNotes > 0 ? Math.round((hitNotes / totalNotes) * 100) : 100;
+            
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('maxCombo').textContent = maxCombo;
+            document.getElementById('finalAccuracy').textContent = accuracy + '%';
+            
+            document.getElementById('gameOverModal').classList.add('active');
+            document.getElementById('startBtn').disabled = false;
+        }
+        
+        init();
+    </script>
+</body>
+</html>
